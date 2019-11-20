@@ -60,7 +60,7 @@ export class BakeExtensionSettings {
     }
 
     public getBuildVariants(): object {
-        const buildVariants = this.config.get("buildVariants");
+        const buildVariants: any = this.config.get("buildVariants");
         const copy = {};
         for (const key in buildVariants) {
             if (key === EXAMPLE_VARIANT_NAME &&

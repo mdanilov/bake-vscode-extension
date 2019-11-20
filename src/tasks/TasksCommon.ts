@@ -1,7 +1,7 @@
-import { BuildVariant } from "../model/BuildVariant";
-import { BakeExtensionSettings } from "../settings/BakeExtensionSettings";
 import * as vscode from "vscode";
+import { BuildVariant } from "../model/BuildVariant";
 import { globalState } from "../model/GlobalState";
+import { BakeExtensionSettings } from "../settings/BakeExtensionSettings";
 
 // FIXME: the next line assumes that we are working with one workspace only (should be the case most of time)
 export function createBuildTask(name: string,
@@ -14,7 +14,7 @@ export function createBuildTask(name: string,
     const kind = {
         label: name,
         type: "shell",
-        command: commandLine
+        command: commandLine,
     };
     const task = new vscode.Task(kind, folder, name , type);
     task.group = vscode.TaskGroup.Build;
@@ -25,7 +25,7 @@ export function createBuildTask(name: string,
     return task;
 }
 
-function createBuildCommandLine(buildVariant: BuildVariant, settings: BakeExtensionSettings ){
+function createBuildCommandLine(buildVariant: BuildVariant, settings: BakeExtensionSettings ) {
     const numCores = settings.getNumberOfParallelBuilds();
     const adaptCompiler = settings.getUnitTestAdaptType();
     const runTestsOnBuild = settings.shallUnitTestRunOnBuild();

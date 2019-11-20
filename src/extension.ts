@@ -2,18 +2,29 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
-import {cleanIncludesAndDefines} from "./commands/cleanIncludesAndDefines";
-import {doImportBuildVariantFromSettings, importIncludesAndDefines} from "./commands/importIncludesAndDefines";
-import {registerAutoDetectedBakeTasks} from "./tasks/AutoDetectedBuildTasks";
-import {registerActiveBakeTasks} from "./tasks/VariantBuildTasks";
-import { BakeHoverProvider } from "./languages/BakeHoverProvider";
-import { BakeCompletionItemProvider } from "./languages/BakeCompletionItemProvider";
+import { cleanIncludesAndDefines } from "src/commands/cleanIncludesAndDefines";
+import { doImportBuildVariantFromSettings, importIncludesAndDefines } from "src/commands/importIncludesAndDefines";
+import { BakeCompletionItemProvider } from "src/languages/BakeCompletionItemProvider";
+import { BakeHoverProvider } from "src/languages/BakeHoverProvider";
+import { registerAutoDetectedBakeTasks } from "src/tasks/AutoDetectedBuildTasks";
+import { registerActiveBakeTasks } from "src/tasks/VariantBuildTasks";
 
-import newCppFile from "./commands/newCppFile";
-import newHeaderFile from "./commands/newHeaderFile";
+import newCppFile from "src/commands/newCppFile";
+import newHeaderFile from "src/commands/newHeaderFile";
 
-import { BakeExtensionSettings } from "./settings/BakeExtensionSettings";
-import logger from "./util/logger";
+import { BakeExtensionSettings } from "src/settings/BakeExtensionSettings";
+import logger from "src/util/logger";
+
+import * as path from "path";
+
+import {
+    LanguageClient,
+    LanguageClientOptions,
+    ServerOptions,
+    TransportKind,
+  } from "vscode-languageclient";
+
+let client: LanguageClient;
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -46,11 +57,56 @@ export async function activate(cntxt: vscode.ExtensionContext) {
     cntxt.subscriptions.push(vscode.languages.registerHoverProvider(BakeHoverProvider.BakeType, new BakeHoverProvider(cntxt)));
     cntxt.subscriptions.push(
         vscode.languages.registerCompletionItemProvider(
-            "bake", new BakeCompletionItemProvider(), ':', ',', '\n'));
+            "bake", new BakeCompletionItemProvider(), ":", ",", "\n"));
 
     warnOnDeprecated();
 
     await importDefaultBuildVariant();
+
+    // The server is implemented in node
+    const serverModule = cntxt.asAbsolutePath(path.join("src", "server", "out", "server.js"));
+    // The debug options for the server
+    // --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging
+    const debugOptions = { execArgv: ["--nolazy", "--inspect-brk=6009"] };
+
+    // If the extension is launched in debug mode then the debug server options are used
+    // Otherwise the run options are used
+    const serverOptions: ServerOptions = {
+        debug: {
+            module: serverModule,
+            options: debugOptions,
+            transport: TransportKind.ipc,
+        },
+        run: { module: serverModule, transport: TransportKind.ipc },
+    };
+
+    // Options to control the language client
+    const clientOptions: LanguageClientOptions = {
+        // Register the server for bake project files
+        documentSelector: [{ scheme: "file", language: "bake", pattern: "**/{Project,Adapt}.meta" }],
+        synchronize: {
+            // Notify the server about file changes to Project.meta files contained in the workspace
+            fileEvents: vscode.workspace.createFileSystemWatcher("**/{Project,Adapt}.meta"),
+        },
+    };
+
+    // Create the language client and start the client.
+    client = new LanguageClient(
+        "bakeServer",
+        "Bake Language Server",
+        serverOptions,
+        clientOptions,
+    );
+
+    // Start the client. This will also launch the server
+    client.start();
+}
+
+export function deactivate(): Thenable<void> {
+    if (!client) {
+        return undefined;
+    }
+    return client.stop();
 }
 
 function registerCommand(context: vscode.ExtensionContext, id: string, callback: (...args: any[]) => any, thisArg?: any) {

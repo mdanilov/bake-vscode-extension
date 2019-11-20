@@ -39,4 +39,3 @@ function createBuildTasksOfActiveBuildVariants(): vscode.Task[] {
         return createBuildTask(name, v, "Bake Variant");
     });
 }
-

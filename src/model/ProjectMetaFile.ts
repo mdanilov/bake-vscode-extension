@@ -58,7 +58,7 @@ export class ProjectMetaFile {
                         matches.push(match[1]);
                     }
                 }
-                return matches
+                return matches;
             }).then(null, (e) => {
                 logger.error(e.toString());
                 return [];
